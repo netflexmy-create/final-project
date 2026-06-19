@@ -961,7 +961,7 @@
       // 주요 수치 리셋
       firstCard = null;
       secondCard = null;
-      isLockMode = false;
+      isLockMode = true; // 프리뷰가 끝날 때까지 조작을 잠급니다.
       moves = 0;
       matchedPairs = 0;
       currentSeconds = 0;
@@ -1012,6 +1012,9 @@
         // 16장의 카드가 순차적으로 차례차례 펼쳐지는 느낌의 프리미엄 효과
         cardElement.style.animationDelay = `${index * 35}ms`;
         cardElement.classList.add('card-deal');
+        
+        // 게임 시작 시 앞면(이모지)을 0.8초 동안 보여주기 위해 flipped 클래스 추가
+        cardElement.classList.add('flipped');
 
         // 리스너 등록
         cardElement.addEventListener('click', () => handleCardClick(cardElement));
@@ -1024,6 +1027,14 @@
 
         board.appendChild(cardElement);
       });
+
+      // 0.8초 동안 모든 카드 보여주기 연출
+      // 카드 등장 애니메이션(약 0.5초)이 끝난 후, 온전히 0.8초 동안 이모지 앞면을 노출하고 다시 덮습니다.
+      setTimeout(() => {
+        const allCards = document.querySelectorAll('.card');
+        allCards.forEach(card => card.classList.remove('flipped'));
+        isLockMode = false; // 이제 카드 선택이 가능하도록 조작 락을 해제합니다.
+      }, 1300); // 1.3초 = 카드 뿌리기 완료(0.5초) + 암기 노출(0.8초)
     }
 
     // 2. 카드 클릭 분기 처리
