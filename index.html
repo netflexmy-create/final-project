@@ -828,6 +828,10 @@
     let timerInterval = null;
     let currentSeconds = 0;
 
+    // 순차 프리뷰(한 장씩 1초씩 노출) 제어용 변수
+    let previewTimeouts = [];
+    let isPreviewing = false;
+
     // 사운드 합성 설정
     let isSoundOn = true;
     let audioCtx = null;
@@ -947,6 +951,55 @@
       }
     };
 
+    // 기존 진행 중인 모든 프리뷰 타이머 해제 함수
+    function clearActivePreviews() {
+      previewTimeouts.forEach(id => clearTimeout(id));
+      previewTimeouts = [];
+      isPreviewing = false;
+    }
+
+    // 카드 한 장씩 1초씩 보여주고 뒤집는 순차 프리뷰 연출 함수
+    function startSequentialPreview() {
+      isPreviewing = true;
+      isLockMode = true; // 유저 입력 잠금
+
+      let currentIndex = 0;
+      const allCards = document.querySelectorAll('.card');
+
+      function revealNext() {
+        if (!isPreviewing) return; // 프리뷰가 도중에 리셋되면 중단
+
+        if (currentIndex < allCards.length) {
+          const card = allCards[currentIndex];
+          card.classList.add('flipped');
+          if (isSoundOn) sound.flip();
+
+          // 0.3초(300ms) 노출 후 다시 뒤집기
+          const t1 = setTimeout(() => {
+            if (!isPreviewing) return;
+            card.classList.remove('flipped');
+            if (isSoundOn) sound.flip();
+            
+            currentIndex++;
+            
+            // 다음 카드로 넘어갈 때 150ms 텀을 주어 자연스러운 흐름 연출
+            const t2 = setTimeout(revealNext, 150);
+            previewTimeouts.push(t2);
+          }, 300);
+
+          previewTimeouts.push(t1);
+        } else {
+          // 모든 카드 프리뷰 종료
+          isPreviewing = false;
+          isLockMode = false; // 입력 잠금 해제, 본 게임 시작!
+        }
+      }
+
+      // 카드 등장 딜링 애니메이션(약 0.5초)이 완전히 끝나면 0.6초 뒤에 첫 번째 카드부터 순차 노출 시작
+      const startTimeout = setTimeout(revealNext, 600);
+      previewTimeouts.push(startTimeout);
+    }
+
     /* -------------------------------------------
        [D] 게임 세팅 및 제어 상태 머신
        ------------------------------------------- */
@@ -961,7 +1014,7 @@
       // 주요 수치 리셋
       firstCard = null;
       secondCard = null;
-      isLockMode = true; // 프리뷰가 끝날 때까지 조작을 잠급니다.
+      isLockMode = true; // 프리뷰 완료 시점까지 유저의 임의 조작 방지
       moves = 0;
       matchedPairs = 0;
       currentSeconds = 0;
@@ -1012,9 +1065,6 @@
         // 16장의 카드가 순차적으로 차례차례 펼쳐지는 느낌의 프리미엄 효과
         cardElement.style.animationDelay = `${index * 35}ms`;
         cardElement.classList.add('card-deal');
-        
-        // 게임 시작 시 앞면(이모지)을 0.8초 동안 보여주기 위해 flipped 클래스 추가
-        cardElement.classList.add('flipped');
 
         // 리스너 등록
         cardElement.addEventListener('click', () => handleCardClick(cardElement));
@@ -1028,13 +1078,11 @@
         board.appendChild(cardElement);
       });
 
-      // 1.3초 동안 모든 카드 보여주기 연출
-      // 카드 등장 애니메이션(약 0.5초)이 끝난 후, 온전히 1.3초 동안 이모지 앞면을 노출하고 다시 덮습니다.
-      setTimeout(() => {
-        const allCards = document.querySelectorAll('.card');
-        allCards.forEach(card => card.classList.remove('flipped'));
-        isLockMode = false; // 이제 카드 선택이 가능하도록 조작 락을 해제합니다.
-      }, 1800); // 1.8초 = 카드 뿌리기 완료(0.5초) + 암기 노출(1.3초)
+      // 기존 진행 중인 모든 미리보기 타임아웃을 즉시 해제하여 오작동 방지
+      clearActivePreviews();
+      
+      // 순차 미리보기 연출 실행
+      startSequentialPreview();
     }
 
     // 2. 카드 클릭 분기 처리
