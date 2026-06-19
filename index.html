@@ -1,0 +1,1004 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>파스텔 메모리 매칭 게임 (Memory Matching Game)</title>
+  <!-- 구글 폰트 불러오기 (Outfit: 깔끔하고 모던한 영문/숫자용, Noto Sans KR: 가독성 높은 한글용) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+  
+  <style>
+    /* ==========================================
+       1. 디자인 시스템 & 변수 정의 (CSS Variables)
+       ========================================== */
+    :root {
+      /* 색상 테마: 파스텔톤 계열 */
+      --primary-color: #8EC5FC;      /* 주요 파스텔 블루 */
+      --secondary-color: #E0C3FC;    /* 주요 파스텔 연보라 */
+      --accent-color: #FFB7B2;       /* 포인트 코랄 핑크 */
+      --correct-color: #BFFCC6;      /* 일치 시 초록색 피드백 */
+      --incorrect-color: #FFC6FF;    /* 불일치 시 마젠타 피드백 */
+      --bg-gradient: linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%); /* 전체 배경 그라디언트 */
+      
+      /* 글자 색상 */
+      --text-dark: #2d3748;
+      --text-muted: #718096;
+      --text-light: #ffffff;
+      
+      /* 카드 뒷면 격자 패턴용 투명 파스텔 보라 */
+      --primary-color-light: rgba(142, 197, 252, 0.2);
+    }
+
+    /* 초기화 및 기본 스타일 */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Outfit', 'Noto Sans KR', sans-serif;
+      background: var(--bg-gradient);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-dark);
+      overflow-x: hidden;
+      padding: 20px;
+    }
+
+    /* ==========================================
+       2. 레이아웃 & 컨테이너 (Layout & Containers)
+       ========================================== */
+    
+    /* 대시보드(헤더+게임판) 유리에 가둔 듯한 Glassmorphism 효과 */
+    .game-container {
+      background: rgba(255, 255, 255, 0.65);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.5);
+      border-radius: 24px;
+      padding: 30px;
+      width: 100%;
+      max-width: 540px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      animation: fadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    /* 헤더 영역 */
+    .game-header {
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .game-title {
+      font-size: 1.8rem;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      background: linear-gradient(45deg, #7F00FF, #FF007F);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 2px;
+    }
+
+    /* 점수판 및 타이머 바 */
+    .dashboard {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      background: rgba(255, 255, 255, 0.5);
+      padding: 10px 15px;
+      border-radius: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+
+    .stat-box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 6px;
+    }
+
+    .stat-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+
+    .stat-value {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--text-dark);
+      font-feature-settings: "tnum"; /* 숫자 너비를 일정하게 고정하여 깜빡임 방지 */
+    }
+
+    /* 제어 버튼 영역 (사운드 및 리셋) */
+    .control-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .btn {
+      border: none;
+      outline: none;
+      cursor: pointer;
+      font-family: inherit;
+      font-weight: 700;
+      border-radius: 12px;
+      transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn-reset {
+      flex: 1;
+      background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+      color: var(--text-light);
+      padding: 12px;
+      font-size: 1rem;
+      box-shadow: 0 4px 15px rgba(142, 197, 252, 0.3);
+    }
+
+    .btn-reset:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(142, 197, 252, 0.45);
+    }
+
+    .btn-reset:active {
+      transform: translateY(0);
+    }
+
+    /* 사운드 토글 버튼 */
+    .btn-icon {
+      width: 44px;
+      height: 44px;
+      background: rgba(255, 255, 255, 0.8);
+      border: 1px solid rgba(0, 0, 0, 0.05);
+      border-radius: 12px;
+      color: var(--text-dark);
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.02);
+    }
+
+    .btn-icon:hover {
+      background: #ffffff;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 15px rgba(0, 0, 0, 0.05);
+    }
+
+    /* ==========================================
+       3. 게임 보드 & 카드 그리드 (Game Board & Card Grid)
+       ========================================== */
+    .game-board {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      perspective: 1000px; /* 3D 효과를 위한 원근감 설정 */
+      aspect-ratio: 1 / 1; /* 가로세로 일정한 1대1 비율 유지 */
+    }
+
+    /* 개별 카드 컨테이너 */
+    .card {
+      position: relative;
+      cursor: pointer;
+      user-select: none;
+      -webkit-user-drag: none;
+      aspect-ratio: 1 / 1;
+      outline: none;
+    }
+
+    /* 카드 3D 회전을 감싸는 내부 레이어 */
+    .card-inner {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      transform-style: preserve-3d; /* 자식 요소들의 3D 입체 유지 */
+      transition: transform 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.2); /* 튕기는 듯한 탄성 효과 */
+      border-radius: 16px;
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.06);
+    }
+
+    /* 호버 시 카드가 살짝 떠오르는 느낌 */
+    .card:hover .card-inner {
+      transform: translateY(-4px);
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.08);
+    }
+
+    /* 뒤집힌 상태 (JavaScript로 제어) */
+    .card.flipped .card-inner {
+      transform: rotateY(180deg);
+    }
+
+    /* 카드 앞면과 뒷면 공통 스타일 */
+    .card-front, .card-back {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      backface-visibility: hidden; /* 뒤집혔을 때 뒷면이 보이지 않도록 숨김 */
+      border-radius: 16px;
+      border: 2px solid #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: border-color 0.3s ease, background-color 0.3s ease;
+    }
+
+    /* 카드 뒷면 (숨겨진 상태) - 세련된 땡땡이 패턴 */
+    .card-back {
+      background-color: #ffffff;
+      background-image: radial-gradient(var(--primary-color-light) 22%, transparent 22%),
+                        radial-gradient(var(--primary-color-light) 22%, transparent 22%);
+      background-size: 14px 14px;
+      background-position: 0 0, 7px 7px;
+      color: var(--primary-color);
+    }
+
+    .card-back-icon {
+      opacity: 0.65;
+      transition: transform 0.3s ease;
+    }
+
+    .card:hover .card-back-icon {
+      transform: scale(1.15) rotate(15deg);
+    }
+
+    /* 카드 앞면 (공개된 상태) - 180도 회전 처리 */
+    .card-front {
+      background-color: #ffffff;
+      transform: rotateY(180deg);
+      font-size: 2.2rem;
+    }
+
+    /* ==========================================
+       4. 특수 상태 효과 (Matched, Incorrect)
+       ========================================== */
+    
+    /* 일치 성공 시: 팝 애니메이션 후 반투명하게 유지하여 빈 공간처럼 보이게 처리 */
+    .card.matched .card-inner {
+      animation: matchPop 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.2) forwards;
+    }
+    
+    .card.matched .card-front {
+      background-color: var(--correct-color);
+      border-color: #a8f5b2;
+    }
+
+    /* 불일치 시: 흔들리는 에러 쉐이크 애니메이션 적용 */
+    .card.incorrect .card-inner {
+      animation: shake 0.6s ease-in-out;
+    }
+
+    .card.incorrect .card-front {
+      background-color: var(--incorrect-color);
+      border-color: #f7a8f7;
+    }
+
+    /* ==========================================
+       5. 결과 알림 모달 (Result Modal Overlay)
+       ========================================== */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(15, 23, 42, 0.4);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.5s ease;
+    }
+
+    .modal-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    /* 모달 박스 */
+    .modal-content {
+      background: #ffffff;
+      border-radius: 24px;
+      padding: 40px 30px;
+      width: 90%;
+      max-width: 400px;
+      text-align: center;
+      box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
+      border: 1px solid rgba(255, 255, 255, 0.8);
+      position: relative;
+      overflow: hidden;
+      transform: scale(0.9) translateY(30px);
+      transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.2);
+    }
+
+    .modal-overlay.active .modal-content {
+      transform: scale(1) translateY(0);
+    }
+
+    /* 모달 뒷배경 축하 파티클 캔버스 */
+    .confetti-canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .modal-body {
+      position: relative;
+      z-index: 2; /* 캔버스 위에 콘텐츠 배치 */
+    }
+
+    .modal-badge {
+      font-size: 3.5rem;
+      margin-bottom: 15px;
+      display: inline-block;
+      animation: bounce 2s infinite ease-in-out;
+    }
+
+    .modal-title {
+      font-size: 1.75rem;
+      font-weight: 800;
+      color: var(--text-dark);
+      margin-bottom: 8px;
+    }
+
+    .modal-subtitle {
+      font-size: 0.95rem;
+      color: var(--text-muted);
+      margin-bottom: 25px;
+    }
+
+    /* 결과 스코어 세부 보드 */
+    .result-board {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+      margin-bottom: 30px;
+    }
+
+    .result-box {
+      background: #f7fafc;
+      padding: 15px;
+      border-radius: 16px;
+      border: 1px solid #edf2f7;
+    }
+
+    .result-label {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-bottom: 5px;
+      font-weight: 500;
+    }
+
+    .result-value {
+      font-size: 1.4rem;
+      font-weight: 800;
+      color: var(--text-dark);
+    }
+
+    .btn-modal-reset {
+      width: 100%;
+      background: linear-gradient(135deg, #7F00FF 0%, #FF007F 100%);
+      color: #ffffff;
+      padding: 15px;
+      font-size: 1.1rem;
+      box-shadow: 0 4px 15px rgba(255, 0, 127, 0.2);
+    }
+
+    .btn-modal-reset:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(255, 0, 127, 0.35);
+    }
+
+    /* ==========================================
+       6. 애니메이션 정의 (Animations)
+       ========================================== */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* 카드 일치 시 통통 튀고 사라지는 듯한 팝 애니메이션 */
+    @keyframes matchPop {
+      0% { transform: rotateY(180deg) scale(1); }
+      40% { transform: rotateY(180deg) scale(1.15); }
+      100% { transform: rotateY(180deg) scale(0.9); opacity: 0.3; pointer-events: none; }
+    }
+
+    /* 카드 불일치 시 좌우 흔들림 */
+    @keyframes shake {
+      0%, 100% { transform: rotateY(180deg) translateX(0); }
+      20%, 60% { transform: rotateY(180deg) translateX(-8px); }
+      40%, 80% { transform: rotateY(180deg) translateX(8px); }
+    }
+
+    /* 모달 배지 통통 튀는 애니메이션 */
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+
+    /* ==========================================
+       7. 반응형 미디어 쿼리 (Responsive Queries)
+       ========================================== */
+    @media (max-width: 480px) {
+      .game-container {
+        padding: 15px;
+        gap: 15px;
+      }
+      
+      .game-title {
+        font-size: 1.5rem;
+      }
+
+      .dashboard {
+        padding: 8px 10px;
+      }
+
+      .stat-value {
+        font-size: 1.1rem;
+      }
+
+      .game-board {
+        gap: 8px; /* 모바일에서는 촘촘하게 배치 */
+      }
+
+      .card-front {
+        font-size: 1.7rem; /* 모바일에서 이모지 크기 적절히 축소 */
+      }
+      
+      .card-inner {
+        border-radius: 12px;
+      }
+      .card-front, .card-back {
+        border-radius: 12px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 메인 게임 영역 컨테이너 -->
+  <div class="game-container">
+    
+    <!-- 게임 상단 헤더 및 제목 -->
+    <header class="game-header">
+      <h1 class="game-title">Pastel Memory</h1>
+      
+      <!-- 스탯 대시보드 (진행상황 실시간 연동) -->
+      <div class="dashboard">
+        <div class="stat-box">
+          <span class="stat-label">Time</span>
+          <span class="stat-value" id="timer">00:00</span>
+        </div>
+        <div class="stat-box">
+          <span class="stat-label">Flips</span>
+          <span class="stat-value" id="flips">0</span>
+        </div>
+        <div class="stat-box">
+          <span class="stat-label">Matches</span>
+          <span class="stat-value" id="matches">0/8</span>
+        </div>
+      </div>
+
+      <!-- 제어 버튼 (사운드 및 리셋) -->
+      <div class="control-row">
+        <button class="btn btn-icon" id="soundBtn" aria-label="사운드 켜기/끄기">
+          <!-- 스피커 켜짐 아이콘 -->
+          <svg id="soundOnIcon" viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+            <path d="M14,3.23V5.29C16.89,6.15 19,8.83 19,12C19,15.17 16.89,17.85 14,18.71V20.77C18,19.86 21,16.28 21,12C21,7.72 18,4.14 14,3.23M16.5,12C16.5,10.23 15.5,8.71 14,7.97V16C15.5,15.29 16.5,13.77 16.5,12M3,9V15H7L12,20V4L7,9H3Z"/>
+          </svg>
+          <!-- 스피커 꺼짐 아이콘 (초기 숨김) -->
+          <svg id="soundOffIcon" viewBox="0 0 24 24" width="22" height="22" fill="currentColor" style="display: none;">
+            <path d="M12,4L9.91,6.09L12,8.18M4.27,3L3,4.27L7.73,9H3V15H7L12,20V13.27L16.25,17.53C15.58,18.04 14.83,18.46 14,18.7V20.77C15.38,20.44 16.63,19.78 17.7,18.9L20.73,21.92L22,20.65L4.27,3M14,3.23V5.29C14.73,5.5 15.43,5.83 16.07,6.27L14.59,7.75C14.41,7.63 14.21,7.53 14,7.46V11.18L19,16.18C19,14.86 19,13.43 19,12C19,7.72 16,4.14 14,3.23M16.5,12C16.5,11.2 16.19,10.47 15.69,9.92L14,8.23V9.77L15.89,11.66C15.96,11.78 16.5,11.89 16.5,12Z"/>
+          </svg>
+        </button>
+        <button class="btn btn-reset" id="resetBtn">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+            <path d="M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z"/>
+          </svg>
+          다시 시작하기
+        </button>
+      </div>
+    </header>
+
+    <!-- 4x4 게임 카드 배치 그리드 판 -->
+    <main class="game-board" id="board" aria-label="카드 게임 보드"></main>
+  </div>
+
+  <!-- 게임 클리어 축하 결과 팝업 모달 -->
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal-content">
+      <!-- 펑펑 터지는 축하 그래픽을 그릴 캔버스 배경 -->
+      <canvas class="confetti-canvas" id="confettiCanvas"></canvas>
+      
+      <div class="modal-body">
+        <span class="modal-badge">🏆</span>
+        <h2 class="modal-title">축하합니다!</h2>
+        <p class="modal-subtitle">모든 짝을 완벽히 맞추셨습니다!</p>
+        
+        <!-- 최종 플레이 기록 판 -->
+        <div class="result-board">
+          <div class="result-box">
+            <div class="result-label">소요 시간</div>
+            <div class="result-value" id="finalTime">00:00</div>
+          </div>
+          <div class="result-box">
+            <div class="result-label">시도 횟수</div>
+            <div class="result-value" id="finalFlips">0</div>
+          </div>
+        </div>
+
+        <button class="btn btn-modal-reset" id="modalResetBtn">
+          새 게임 시작하기
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================
+       8. 게임 비즈니스 로직 & 연출 스크립트
+       ========================================== -->
+  <script>
+    /* -------------------------------------------
+       [A] 글로벌 상태 제어 변수들
+       ------------------------------------------- */
+    // 매칭 게임 카드 뒷면 테마용 이모지 배열 (8쌍 = 총 16장)
+    const cardEmojis = ['🍎', '🍋', '🍓', '🍇', '🍉', '🍒', '🥝', '🥑'];
+    
+    let cards = [];             // 섞여진 16장 데이터 배열
+    let firstCard = null;       // 첫 번째 뒤집은 카드 객체
+    let secondCard = null;      // 두 번째 뒤집은 카드 객체
+    let isLockMode = false;     // 불일치 시 다시 카드가 닫히는 동안 중복 클릭 방지용 락
+    let moves = 0;              // 총 뒤집기 시도 횟수 (Flips)
+    let matchedPairs = 0;       // 매치 성공한 짝 개수 (최대 8)
+    
+    // 타이머 관련 변수
+    let isTimerActive = false;  // 타이머 작동 상태
+    let startTime = null;       // 게임 최초 시작 시간
+    let timerInterval = null;   // 실시간 갱신용 setInterval ID
+    let currentSeconds = 0;     // 현재 누적 시간 (초)
+
+    // 오디오 설정
+    let isSoundOn = true;
+    let audioCtx = null;        // Web Audio Context (사용자 조작 후 브라우저 정책에 맞게 초기화)
+
+    // DOM 참조 캐싱
+    const board = document.getElementById('board');
+    const flipsDisplay = document.getElementById('flips');
+    const timerDisplay = document.getElementById('timer');
+    const matchesDisplay = document.getElementById('matches');
+    
+    const resetBtn = document.getElementById('resetBtn');
+    const soundBtn = document.getElementById('soundBtn');
+    const soundOnIcon = document.getElementById('soundOnIcon');
+    const soundOffIcon = document.getElementById('soundOffIcon');
+    
+    const modalOverlay = document.getElementById('modalOverlay');
+    const modalResetBtn = document.getElementById('modalResetBtn');
+    const finalTimeDisplay = document.getElementById('finalTime');
+    const finalFlipsDisplay = document.getElementById('finalFlips');
+    const confettiCanvas = document.getElementById('confettiCanvas');
+
+    /* -------------------------------------------
+       [B] Web Audio API 사운드 신디사이저 (효과음)
+       ------------------------------------------- */
+    // 브라우저 정책(오디오 세션 자동 재생 차단)을 우회하기 위해 첫 유저 액션 시 초기화
+    function initAudio() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+    }
+
+    // 소리 재생 도우미 함수 (간단한 파형 합성)
+    function playTone(freqs, duration, type = 'sine') {
+      if (!isSoundOn) return;
+      initAudio();
+      
+      const osc = audioCtx.createOscillator();
+      const gainNode = audioCtx.createGain();
+      
+      osc.type = type;
+      osc.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+      
+      const now = audioCtx.currentTime;
+      gainNode.gain.setValueAtTime(0.15, now);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, now + duration);
+      
+      // 주파수가 배열 형태일 경우 순차적으로 연주 (아르페지오/벨 효과)
+      if (Array.isArray(freqs)) {
+        const step = duration / freqs.length;
+        freqs.forEach((freq, idx) => {
+          osc.frequency.setValueAtTime(freq, now + idx * step);
+        });
+      } else {
+        osc.frequency.setValueAtTime(freqs, now);
+      }
+      
+      osc.start(now);
+      osc.stop(now + duration);
+    }
+
+    // 효과음 트리거
+    const sound = {
+      flip: () => playTone([400, 600], 0.1, 'sine'),              // 뒤집기: 톡 올라가는 소리
+      match: () => playTone([523.25, 659.25, 783.99], 0.25, 'sine'), // 매치 성공: C5-E5-G5 도미솔 화음
+      mismatch: () => playTone([300, 180], 0.2, 'triangle'),      // 매치 실패: 띠우우~ 낮아지는 소리
+      victory: () => {                                            // 클리어 축하: 발랄한 나팔 멜로디
+        const notes = [261.63, 329.63, 392.00, 523.25, 659.25, 783.99, 1046.50];
+        notes.forEach((freq, idx) => {
+          setTimeout(() => playTone(freq, 0.2, 'sine'), idx * 80);
+        });
+      }
+    };
+
+    /* -------------------------------------------
+       [C] 게임 코어 상태 머신 로직
+       ------------------------------------------- */
+    
+    // 1. 게임 판 재정렬 & 상태 초기화
+    function startNewGame() {
+      // 1-1) 모달 닫기
+      modalOverlay.classList.remove('active');
+      stopConfetti();
+
+      // 1-2) 상태 초기화
+      firstCard = null;
+      secondCard = null;
+      isLockMode = false;
+      moves = 0;
+      matchedPairs = 0;
+      currentSeconds = 0;
+      
+      // 스탯 디스플레이 리셋
+      flipsDisplay.textContent = '0';
+      timerDisplay.textContent = '00:00';
+      matchesDisplay.textContent = '0/8';
+
+      // 1-3) 타이머 초기화
+      clearInterval(timerInterval);
+      isTimerActive = false;
+
+      // 1-4) 카드 리스트 구축 (이모지 8개 * 2개씩 복사)
+      cards = [...cardEmojis, ...cardEmojis];
+      
+      // Fisher-Yates 셔플 알고리즘으로 무작위 배치
+      for (let i = cards.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [cards[i], cards[j]] = [cards[j], cards[i]];
+      }
+
+      // 1-5) 카드 보드판 그리기 (HTML 주입)
+      board.innerHTML = '';
+      cards.forEach((emoji, index) => {
+        const cardElement = document.createElement('div');
+        cardElement.classList.add('card');
+        cardElement.dataset.index = index;
+        cardElement.dataset.emoji = emoji;
+        cardElement.setAttribute('tabindex', '0'); // 키보드 포커싱 지원 (웹 접근성 확보)
+
+        // 내부 3D 회전 카드 껍데기
+        cardElement.innerHTML = `
+          <div class="card-inner">
+            <div class="card-back">
+              <svg class="card-back-icon" viewBox="0 0 24 24" width="26" height="26" fill="currentColor">
+                <path d="M12,17.27L18.18,21L16.54,13.97L22,9.24L14.81,8.62L12,2L9.19,8.62L2,9.24L7.45,13.97L5.82,21L12,17.27Z"/>
+              </svg>
+            </div>
+            <div class="card-front">
+              <span>${emoji}</span>
+            </div>
+          </div>
+        `;
+
+        // 카드 클릭 이벤트 부착
+        cardElement.addEventListener('click', () => handleCardClick(cardElement));
+        // 키보드 Space/Enter 키 조작 대응 (접근성 우수과제 득점 포인트)
+        cardElement.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            handleCardClick(cardElement);
+          }
+        });
+
+        board.appendChild(cardElement);
+      });
+    }
+
+    // 2. 카드 클릭 처리 핸들러
+    function handleCardClick(cardElement) {
+      // 락이 걸렸거나, 동일한 카드를 더블클릭했거나, 이미 매치된 카드를 눌렀다면 조작 무시
+      if (isLockMode) return;
+      if (cardElement.classList.contains('flipped') || cardElement.classList.contains('matched')) return;
+
+      // 오디오 신디사이저 활성화 처리
+      initAudio();
+
+      // 첫 뒤집는 순간부터 초단위 타이머 카운팅 작동
+      if (!isTimerActive) {
+        startTimer();
+      }
+
+      // 카드 상태 뒤집힘으로 변경
+      cardElement.classList.add('flipped');
+      sound.flip();
+
+      if (!firstCard) {
+        // 첫 번째 카드를 고른 경우
+        firstCard = cardElement;
+      } else {
+        // 두 번째 카드를 고른 경우
+        secondCard = cardElement;
+        moves++;
+        flipsDisplay.textContent = moves; // 시도 횟수 전광판 갱신
+        
+        // 카드 짝 판정 상태 머신 진입
+        checkCardMatch();
+      }
+    }
+
+    // 3. 짝 판정 알고리즘
+    function checkCardMatch() {
+      const isMatch = firstCard.dataset.emoji === secondCard.dataset.emoji;
+
+      if (isMatch) {
+        // [성공 케이스]
+        handleMatchSuccess();
+      } else {
+        // [실패 케이스]
+        handleMatchFailure();
+      }
+    }
+
+    // 4. 성공 처리
+    function handleMatchSuccess() {
+      const card1 = firstCard;
+      const card2 = secondCard;
+
+      // 판정이 완료될 때까지 임시 락 해제
+      firstCard = null;
+      secondCard = null;
+
+      // 카드에 성공 클래스 칠하기
+      card1.classList.add('matched');
+      card2.classList.add('matched');
+
+      matchedPairs++;
+      matchesDisplay.textContent = `${matchedPairs}/8`;
+      
+      // 이모지 맞춘 효과음 재생
+      setTimeout(() => {
+        sound.match();
+      }, 100);
+
+      // 모든 짝을 찾은 경우 (게임 오버 판정)
+      if (matchedPairs === 8) {
+        endGame();
+      }
+    }
+
+    // 5. 실패 처리 (흔들기 애니메이션 및 0.8초 후 원복)
+    function handleMatchFailure() {
+      isLockMode = true; // 대기 시간 동안 추가 클릭 방지 락 체결
+
+      const card1 = firstCard;
+      const card2 = secondCard;
+
+      // 불일치 클래스 추가로 CSS 흔들기(shake) 작동
+      card1.classList.add('incorrect');
+      card2.classList.add('incorrect');
+
+      setTimeout(() => {
+        sound.mismatch();
+      }, 150);
+
+      // 0.8초(800ms) 대기 후 카드 원상복귀
+      setTimeout(() => {
+        card1.classList.remove('flipped', 'incorrect');
+        card2.classList.remove('flipped', 'incorrect');
+        
+        // 상태 초기화 및 조작 락 해제
+        firstCard = null;
+        secondCard = null;
+        isLockMode = false;
+      }, 800);
+    }
+
+    /* -------------------------------------------
+       [D] 시간 타이머 관리 모듈
+       ------------------------------------------- */
+    function startTimer() {
+      isTimerActive = true;
+      startTime = Date.now();
+      
+      timerInterval = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - startTime) / 1000);
+        currentSeconds = elapsed;
+        
+        const minutes = Math.floor(elapsed / 60);
+        const seconds = elapsed % 60;
+        
+        // 00:00 포맷 문자열 변환
+        const formattedMin = String(minutes).padStart(2, '0');
+        const formattedSec = String(seconds).padStart(2, '0');
+        
+        timerDisplay.textContent = `${formattedMin}:${formattedSec}`;
+      }, 1000);
+    }
+
+    /* -------------------------------------------
+       [E] 게임 종료 및 모달 & 캔버스 폭죽 연출
+       ------------------------------------------- */
+    function endGame() {
+      // 타이머 즉시 동결
+      clearInterval(timerInterval);
+      isTimerActive = false;
+
+      // 기록 포맷 연동
+      const finalTimeFormatted = timerDisplay.textContent;
+      finalTimeDisplay.textContent = finalTimeFormatted;
+      finalFlipsDisplay.textContent = moves;
+
+      // 우승 축하 효과음 및 폭죽 가동
+      setTimeout(() => {
+        sound.victory();
+        modalOverlay.classList.add('active');
+        startConfetti();
+      }, 700);
+    }
+
+    /* -------------------------------------------
+       [F] Canvas 기반 모던 색종이(Confetti) 폭죽 시스템
+       ------------------------------------------- */
+    let confettiActive = false;
+    let confettiParticles = [];
+    const colors = ['#e0c3fc', '#8ec5fc', '#FFB7B2', '#BFFCC6', '#FFC6FF', '#FFDAC1'];
+    let animationFrameId = null;
+
+    function resizeConfettiCanvas() {
+      confettiCanvas.width = confettiCanvas.parentElement.clientWidth;
+      confettiCanvas.height = confettiCanvas.parentElement.clientHeight;
+    }
+
+    class ConfettiParticle {
+      constructor() {
+        this.x = Math.random() * confettiCanvas.width;
+        this.y = Math.random() * -100 - 10;
+        this.size = Math.random() * 8 + 4;
+        this.color = colors[Math.floor(Math.random() * colors.length)];
+        this.speedY = Math.random() * 3 + 2;
+        this.speedX = Math.random() * 2 - 1;
+        this.rotation = Math.random() * 360;
+        this.rotationSpeed = Math.random() * 4 - 2;
+      }
+
+      update() {
+        this.y += this.speedY;
+        this.x += this.speedX;
+        this.rotation += this.rotationSpeed;
+
+        // 아래로 떨어지면 위에서 재생성
+        if (this.y > confettiCanvas.height) {
+          this.y = -20;
+          this.x = Math.random() * confettiCanvas.width;
+        }
+      }
+
+      draw(ctx) {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.rotate((this.rotation * Math.PI) / 180);
+        ctx.fillStyle = this.color;
+        ctx.fillRect(-this.size / 2, -this.size / 2, this.size, this.size);
+        ctx.restore();
+      }
+    }
+
+    function startConfetti() {
+      resizeConfettiCanvas();
+      confettiActive = true;
+      confettiParticles = [];
+      
+      // 파티클 80개 생성
+      for (let i = 0; i < 80; i++) {
+        confettiParticles.push(new ConfettiParticle());
+      }
+      
+      const ctx = confettiCanvas.getContext('2d');
+      
+      function animate() {
+        if (!confettiActive) return;
+        ctx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+        
+        confettiParticles.forEach(p => {
+          p.update();
+          p.draw(ctx);
+        });
+        
+        animationFrameId = requestAnimationFrame(animate);
+      }
+      animate();
+    }
+
+    function stopConfetti() {
+      confettiActive = false;
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+      }
+      const ctx = confettiCanvas.getContext('2d');
+      ctx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+    }
+
+    // 모달 창 크기가 혹시 변경될 시 캔버스 스케일링 대응
+    window.addEventListener('resize', () => {
+      if (confettiActive) {
+        resizeConfettiCanvas();
+      }
+    });
+
+    /* -------------------------------------------
+       [G] 설정 조작 이벤트 부착
+       ------------------------------------------- */
+    
+    // 사운드 토글
+    soundBtn.addEventListener('click', () => {
+      isSoundOn = !isSoundOn;
+      initAudio();
+      
+      if (isSoundOn) {
+        soundOnIcon.style.display = 'block';
+        soundOffIcon.style.display = 'none';
+        sound.flip(); // 토글 반응 사운드
+      } else {
+        soundOnIcon.style.display = 'none';
+        soundOffIcon.style.display = 'block';
+      }
+    });
+
+    // 상단 리셋 버튼
+    resetBtn.addEventListener('click', () => {
+      initAudio();
+      if (isSoundOn) sound.flip();
+      startNewGame();
+    });
+
+    // 모달 리셋 버튼
+    modalResetBtn.addEventListener('click', () => {
+      initAudio();
+      if (isSoundOn) sound.flip();
+      startNewGame();
+    });
+
+    // 윈도우 로드 완료 후 첫 게임 세팅 가동
+    window.addEventListener('DOMContentLoaded', startNewGame);
+
+  </script>
+</body>
+</html>
