@@ -1028,13 +1028,13 @@
         board.appendChild(cardElement);
       });
 
-      // 0.8초 동안 모든 카드 보여주기 연출
-      // 카드 등장 애니메이션(약 0.5초)이 끝난 후, 온전히 0.8초 동안 이모지 앞면을 노출하고 다시 덮습니다.
+      // 1.3초 동안 모든 카드 보여주기 연출
+      // 카드 등장 애니메이션(약 0.5초)이 끝난 후, 온전히 1.3초 동안 이모지 앞면을 노출하고 다시 덮습니다.
       setTimeout(() => {
         const allCards = document.querySelectorAll('.card');
         allCards.forEach(card => card.classList.remove('flipped'));
         isLockMode = false; // 이제 카드 선택이 가능하도록 조작 락을 해제합니다.
-      }, 1300); // 1.3초 = 카드 뿌리기 완료(0.5초) + 암기 노출(0.8초)
+      }, 1800); // 1.8초 = 카드 뿌리기 완료(0.5초) + 암기 노출(1.3초)
     }
 
     // 2. 카드 클릭 분기 처리
